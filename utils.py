@@ -58,3 +58,61 @@ def retrieve_saved_data():
     
     return sequences, labels, test_sequences, word_index, index_word, vs
 
+def format_sequence(s):
+    """Add spaces around punctuation."""
+
+    # Add spaces around punctuation
+    s = re.sub(
+        r'(?<=[^\s])(?=[“”!\"#$%&()*+,./:;<=>?@[\]^_`{|}~\t\n])|(?=[^\s])(?<=[“”!\"#$%&()*+,./:;<=>?@[\]^_`{|}~\t\n])', r' ', s)
+
+    # Remove double spaces
+    s = re.sub(r'\s\s', ' ', s)
+    return s
+
+
+def format_data(df_train, df_test,
+                filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
+                keep_freq=5):
+    """Format text data"""
+    texts = list(df_train['question_text'])
+    texts = [format_sequence(t) for t in texts]
+
+    # Fit once to get word counts
+    tokenizer = Tokenizer(lower=False, filters=filters)
+    tokenizer.fit_on_texts(texts)
+    wc = tokenizer.word_counts
+    wc = sorted(wc.items(), key=lambda x: x[1], reverse=True)
+    keep = [w for w in wc if w[1] >= keep_freq]
+
+    # Create again to limit to top words
+    tokenizer = Tokenizer(num_words=len(keep), 
+                          oov_token = 'UNK',
+                          lower=False,
+                          filters=filters)
+    tokenizer.fit_on_texts(texts)
+    word_index = dict(list(tokenizer.word_index.items())[:len(keep)])
+    index_word = dict(list(tokenizer.index_word.items())[:len(keep)])
+    wc = tokenizer.word_counts
+    wc = sorted(wc.items(), key=lambda x: x[1], reverse=True)[:len(keep)]
+    word_index['PAD'] = 0
+    index_word[0] = 'PAD'
+    sequences = tokenizer.texts_to_sequences(texts)
+    lens = [len(s) for s in sequences]
+    
+    vs = tokenizer.num_words + 1
+
+    # Pad sequences to have same length
+    sequences = pad_sequences(sequences, max(lens))
+    sequences = np.array(sequences, dtype=int)
+
+    # Labels
+    labels = np.array(df_train['target'], dtype=int)
+
+    # Test data
+    test_texts = list(df_test['question_text'])
+    test_texts = [format_sequence(t) for t in test_texts]
+    test_sequences = tokenizer.texts_to_sequences(test_texts)
+    test_sequences = pad_sequences(test_sequences, max(lens))
+    test_sequences = np.array(test_sequences, dtype=int)
+
+    return sequences, labels, test_sequences, word_index, index_word, wc, vs
