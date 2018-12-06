@@ -1,6 +1,38 @@
 import numpy as np
 import json
 import keras.backend as K
+
+def load_data(data_name, embedding_name):
+    if embedding_name == 'wiki':
+        if data_name == 'word':
+            embedding_matrix = np.load('word_wiki_embeddings.npy')
+    elif embedding_name == 'glove':
+        if data_name == 'word':
+            embedding_matrix = np.load('word_glove_embeddings.npy')
+            
+    if data_name == 'word':
+        seq_arr = np.load('word_sequences.npy')
+        test_seq_arr = np.load('test_word_sequences.npy')
+        labels = np.load('word_labels.npy')
+        iw = []
+        with open('word_index_word.json', 'r') as f:
+            for l in f:
+                iw.append(json.loads(l))
+
+        index_word = iw[0]
+        index_word = {int(key): word for key, word in index_word.items()}
+
+        wi = []
+        with open('word_word_index.json', 'r') as f:
+            for l in f:
+                wi.append(json.loads(l))
+
+        word_index = wi[0]
+        word_index = {word: int(index) for word, index in word_index.items()}
+            
+        vs = len(word_index)
+    return seq_arr, test_seq_arr, labels, word_index, index_word, vs, embedding_matrix
+
 def f1(y_true, y_pred):
     def recall(y_true, y_pred):
         """Recall metric.
